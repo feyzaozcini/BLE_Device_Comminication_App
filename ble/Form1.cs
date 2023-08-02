@@ -14,7 +14,7 @@ using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Devices.Enumeration;
 using Windows.Foundation.Collections;
 using Windows.Storage.Streams;
-
+//gfhrfgrhfgh
 namespace ble
 {
     public partial class Form1 : Form
