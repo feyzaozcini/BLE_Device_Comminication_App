@@ -1,10 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -12,20 +7,22 @@ using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Advertisement;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Devices.Enumeration;
-using Windows.Foundation.Collections;
-using Windows.Storage.Streams;
-//gfhrfgrhfgh
+using System.Numerics;
+using System.Runtime.InteropServices.WindowsRuntime;
+
 namespace ble
 {
     public partial class Form1 : Form
     {
 
-        #region  Tanımlamalar
+        #region  Definitions
 
         private BluetoothLEAdvertisementWatcher watcher = null;
         private BluetoothLEDevice bluetoothLEDevice = null; 
 
         public GattDeviceServicesResult result { get; set; }
+        public object MathHelper { get; private set; }
+
         public DeviceInformation device = null;
 
         public GattCharacteristic selectedCharacteristic = null;
@@ -34,10 +31,25 @@ namespace ble
         private static int notificationCounter;
         private static DateTime lastValueChangedTime;
 
-        public string HEART_RATE_SERVICE_ID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+        static int x; 
+        static int y; 
+        static int z;
+        static int w;
+        static int h;
+        static int r;
+        static int p;
+        static int battery;
+        
+        public int index;
+
+        public string SERVICE_ID = "Your Service Id";
         private bool connected = false;
+        Vector3 referenceVector = new Vector3(0, 0, 0);
+        Vector3 currentVector;
+        Vector3 angleDegrees;
 
         #endregion
+
 
         public Form1()
         {
@@ -49,10 +61,9 @@ namespace ble
             CheckForIllegalCrossThreadCalls = false;
         }
 
-
         #region Ble Connection
-        
-        
+
+
         private void Ble_startScanner()
         {
             listView1.Items.Clear();
@@ -84,7 +95,8 @@ namespace ble
                 listView1.Items.Add(lst);
             }
         }
-        
+       
+
         private void Ble_stopScanner()
         {
             watcher.Stop();
@@ -93,6 +105,10 @@ namespace ble
         }
 
         string name = "";
+        private static object angle;
+        private static object kalibrasyon;
+        private static object checkSum;
+
         private async void Ble_Connection()
         {
             label1.Text = "Connecting..";
@@ -130,7 +146,7 @@ namespace ble
                 {
                     if (device==null)
                     {
-                        Thread.Sleep(200);
+                        Thread.Sleep(2000);
                     }
                     else
                     {
@@ -144,7 +160,7 @@ namespace ble
                             var services = result.Services;
                             foreach (var service in services)
                             {
-                                if (service.Uuid.ToString() == HEART_RATE_SERVICE_ID)
+                                if (service.Uuid.ToString() == SERVICE_ID)   
                                 {
                                     label1.Text = "Connecting..";
                                     GattCharacteristicsResult characteristicsResult = await service.GetCharacteristicsAsync();
@@ -162,18 +178,15 @@ namespace ble
                                                 if (status==GattCommunicationStatus.Success)
                                                 {
                                                     label1.Text = "Connected..";
-                                                    characteristic.ValueChanged += Characteristic_ValueChanged;
-                                                    //bluetoothLEDevice.ConnectionStatusChanged += BluetoothLeDevice_ConnectionStatusChanged;
-                                                    selectedCharacteristic = characteristic;
-
-
+                                                    if (characteristic != null)
+                                                    {
+                                                        characteristic.ValueChanged += Characteristic_ValueChanged;
+                                                        timer1.Start();
+                                                    }
                                                     lastValueChangedTime = DateTime.Now;
-                                                    notificationCounter = 0;
-                                                    //label1.Text=$"{bluetoothLEDevice.ConnectionStatus}";
+                                                    notificationCounter = 0;   
                                                 }
-                                                    
-                                             }
-
+                                            }
                                         }
                                     }
                                 }
@@ -183,35 +196,167 @@ namespace ble
                 }
             }
         }
-
         
 
-    /*private void BluetoothLeDevice_ConnectionStatusChanged(BluetoothLEDevice sender, object args)
+        private async void Characteristic_ValueChanged(GattCharacteristic sender, GattValueChangedEventArgs args)
         {
-            throw new NotImplementedException();
-        }*/
+            
+            byte[] buffer = new byte[33];
 
-        private void Characteristic_ValueChanged(GattCharacteristic sender, GattValueChangedEventArgs args)
-        {
-            var reader = DataReader.FromBuffer(args.CharacteristicValue);
-            var flags = reader.ReadByte();
-            var value = reader.ReadByte();
+            while (true)
+            {
+                GattReadResult readResult = await sender.ReadValueAsync();
+                if (readResult.Status == GattCommunicationStatus.Success)
+                {
+                    var data = readResult.Value.ToArray();
+                    
+                    
+                    int dataLength = data.Length;
+                    int offset = 0;
 
-            // flags ve value değerlerini listView2'ye ekleyelim
-            ListViewItem newItem = new ListViewItem(new string[] { flags.ToString(), value.ToString() });
+                    while (offset < dataLength)
+                    {
+                        int remainingBytes = dataLength - offset;
+                        int bytesToCopy = Math.Min(buffer.Length, remainingBytes);
 
-            // listView2'ye yeni öğeyi ekleyelim
-            listView2.Items.Add(newItem);
+                        Array.Copy(data, offset, buffer, 0, bytesToCopy);
+
+                        string newBuffer = BitConverter.ToString(buffer);
+                        string cleanedData = newBuffer.Replace("-", "");
+
+                        
+
+                        // x,y,z,w,h,r,p 4 bytelık 8 karakterler 
+
+                        for (int i = 0; i < cleanedData.Length; i += 8)
+                        {
+                            if (i + 8 <= cleanedData.Length)
+                            {
+                                string hexValue = cleanedData.Substring(i, 8); // Her bir 4 byte'lık (8 karakter) veriyi alıyoruz.
+
+
+                                int decimalValue = Convert.ToInt32(hexValue, 16);
+
+                                // İlk 4 byte verisi x değişkenine atanıyor.
+                                if (i == 0)
+                                {
+                                    x = decimalValue;
+                                    x = x % 360;
+                                    
+                                }
+                                // Sonraki 4 byte verisi y değişkenine atanıyor.
+                                else if (i == 8)
+                                {
+                                    y = decimalValue;
+                                    y = y % 360;
+                                    
+                                   
+                                }
+                                else if (i == 16)
+                                {
+                                    z = decimalValue;
+                                    z = z % 360;
+                                
+                                }
+                                else if (i == 24)
+                                {
+                                    w = decimalValue;
+                                    w = w % 360;
+                                    
+                                  
+                                }
+                                else if (i == 32)
+                                {
+                                    h = decimalValue;
+                                    h = h % 360;
+
+                                }
+                                else if (i == 40)
+                                {
+                                    r = decimalValue;
+                                    r = r % 360;
+
+                                }
+                                else if (i == 48)
+                                {
+                                    p = decimalValue;
+                                    p = p % 360;
+
+                                }
+                            }
+                        }
+                        
+                       
+             
+                        if (referenceVector != null && currentVector != null)
+                        { 
+                            angleDegrees = CalculateAngle(referenceVector, currentVector);
+                            
+                        }
+
+                            //batarya , kalibrasyon , CheckSum, ve 2 bytelık end of packet değerleri ayrı değerlendirildi
+                            for (int i = 56; i < cleanedData.Length; i += 2)
+                        {
+                            if (i + 2 <= cleanedData.Length)
+                            {
+                                string hexvalue = cleanedData.Substring(i, 2);
+                                int decimalValue = Convert.ToInt32(hexvalue, 16);
+                                if (i == 56)
+                                {
+                                    battery = decimalValue;
+
+                                }
+                                else if (i == 58)
+                                {
+                                    int kalibrasyon = decimalValue;
+                                    
+                                }
+                                else if (i == 60)
+                                {
+                                    int checkSum = decimalValue;
+                                    
+                                }
+                                else if (i == 62)
+                                {
+                                    int son = decimalValue;
+
+                                }
+                                else if (i == 64)
+                                {
+                                    int end = decimalValue;
+
+                                }
+                            }
+                        }
+                        offset += bytesToCopy;
+                    }
+                    currentVector = new Vector3(x, y, z);
+                    await Task.Delay(5000);
+                }
+                else
+                {
+                    // Okuma hatası oluştu.
+                    break;
+                }
+            }
+
+            //Kesinti sayısı
             var currentTime = DateTime.Now;
             var timeDiff = currentTime - lastValueChangedTime;
             lastValueChangedTime = currentTime;
 
-            // Eğer zaman farkı 0.2 saniyeden büyükse, sinyal kesintisi olduğu kabul edilir
-            if (timeDiff.TotalSeconds > 0.2)
+            // Eğer zaman farkı 0.2 saniyeden büyükse, sinyal kesintisi olduğu kabul edilir (ayarlanmadı)
+            if (timeDiff.TotalSeconds > 0.4)
             {
                 notificationCounter++;
-                //Console.WriteLine($"Sinyal kesintisi! Kesinti sayısı: {notificationCounter}");
             }
+        }
+        //Kalibreden sonraki hesap yapma kısmı
+        private Vector3 CalculateAngle(Vector3 v1, Vector3 v2)
+        {
+    
+            Vector3 deltaX = v1 - v2;
+            return deltaX;
         }
 
         private void DeviceWatcher_Stopped(DeviceWatcher sender, object args)
@@ -236,13 +381,10 @@ namespace ble
 
         private void DeviceWatcher_Added(DeviceWatcher sender, DeviceInformation args)
         {
-
-            if (args.Name == "FIZYOSOFT")
+            if (args.Name == "Your Device Name")
             {
                 device = args;
             }
-            
-            
         }
         
         #endregion
@@ -257,7 +399,7 @@ namespace ble
 
             // ListView2'yi temizleme
             listView2.Items.Clear();
-            label2.Text = "Toplam Kesinti Sayısı : ";
+            label2.Text = "Number Of Outages :  : ";
         }
 
         private void button2_Click(object sender, EventArgs e)
@@ -269,7 +411,7 @@ namespace ble
         private void button3_Click(object sender, EventArgs e)
         {
             Ble_Connection();
-            //label1.Text = "Connected..";
+            
         }
 
         private void button4_Click(object sender, EventArgs e)
@@ -291,11 +433,21 @@ namespace ble
                 bluetoothLEDevice = null;
                 selectedCharacteristic = null;
             }
+            timer1.Stop();
+            timer2.Stop();
             label1.Text = "Disconnected";
             label2.Text= $"Toplam Kesinti Sayısı :  {notificationCounter}";
            
-
         }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            timer2.Start();
+            referenceVector = new Vector3(x, y, z);
+
+            label3.Text = $"Ref.Koordinatları : {referenceVector.ToString()}";
+        }
+
 
         #endregion
 
@@ -308,6 +460,20 @@ namespace ble
         {
             
         }
-       
+        #region Timer Settings
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            ListViewItem newItem = new ListViewItem(new string[] { x.ToString(), y.ToString(), z.ToString(), w.ToString(), battery.ToString() });
+            listView2.Items.Add(newItem);
+        }
+
+        private void timer2_Tick(object sender, EventArgs e)
+        {
+            ListViewItem newItem = new ListViewItem(new string[] { angleDegrees.X.ToString(), angleDegrees.Y.ToString(), angleDegrees.Z.ToString() });
+            listView3.Items.Add(newItem);
+        }
+
+        
+        #endregion
     }
 }
